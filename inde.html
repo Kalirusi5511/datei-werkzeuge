@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Format ändern · lokal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card">
+        <h1><span>🔤</span> Format ändern</h1>
+        <div class="subhead">Dateiendung anpassen · Download startet automatisch</div>
+
+        <div class="nav-links">
+            <a href="index.html">🏠 Start</a>
+            <a href="umbenner.html">✏️ Datei umbenennen</a>
+            <a href="format.html" class="active">🔤 Format ändern</a>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" />
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Datei auswählen</div>
+            <div class="upload-hint">oder hierher ziehen · jede Dateiart</div>
+        </div>
+
+        <div id="fileInfo" class="file-info hidden">
+            <span class="name" id="fileName">—</span>
+            <span class="size" id="fileSize">—</span>
+        </div>
+
+        <div class="input-group hidden" id="formatGroup">
+            <label for="newExtInput">Neue Dateiendung (mit Punkt):</label>
+            <input type="text" id="newExtInput" placeholder="z.B. .md oder .png">
+        </div>
+
+        <div id="errorMsg" class="error-msg hidden"></div>
+        <div id="successMsg" class="success-msg hidden"></div>
+
+        <div class="actions">
+            <button id="changeBtn" class="primary" disabled>🔤 Format ändern &amp; herunterladen</button>
+        </div>
+
+        <div class="footnote">
+            <span class="badge">🔒 Daten verlassen dein Gerät nicht</span>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        const uploadArea   = document.getElementById('uploadArea');
+        const fileInput    = document.getElementById('fileInput');
+        const fileInfoDiv  = document.getElementById('fileInfo');
+        const fileNameSpan = document.getElementById('fileName');
+        const fileSizeSpan = document.getElementById('fileSize');
+        const formatGroup  = document.getElementById('formatGroup');
+        const newExtInput  = document.getElementById('newExtInput');
+        const changeBtn    = document.getElementById('changeBtn');
+        const errorMsgDiv  = document.getElementById('errorMsg');
+        const successMsgDiv= document.getElementById('successMsg');
+
+        let currentFile = null;
+
+        function formatBytes(bytes) {
+            if (!bytes) return '0 Bytes';
+            const k = 1024, sizes = ['Bytes','KB','MB','GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        function showError(msg) {
+            errorMsgDiv.textContent = msg;
+            errorMsgDiv.classList.remove('hidden');
+            successMsgDiv.classList.add('hidden');
+            clearTimeout(errorMsgDiv._t);
+            errorMsgDiv._t = setTimeout(() => errorMsgDiv.classList.add('hidden'), 6000);
+        }
+        function showSuccess(msg) {
+            successMsgDiv.textContent = msg;
+            successMsgDiv.classList.remove('hidden');
+            errorMsgDiv.classList.add('hidden');
+            clearTimeout(successMsgDiv._t);
+            successMsgDiv._t = setTimeout(() => successMsgDiv.classList.add('hidden'), 6000);
+        }
+
+        function handleFile(file) {
+            currentFile = file;
+            fileNameSpan.textContent = file.name;
+            fileSizeSpan.textContent = formatBytes(file.size);
+            fileInfoDiv.classList.remove('hidden');
+            formatGroup.classList.remove('hidden');
+            changeBtn.disabled = false;
+            errorMsgDiv.classList.add('hidden');
+            successMsgDiv.classList.add('hidden');
+
+            // Vorschlag: alte Endung anzeigen
+            const dot = file.name.lastIndexOf('.');
+            newExtInput.value = dot > 0 ? file.name.substring(dot) : '.txt';
+        }
+
+        function changeFormatAndDownload() {
+            if (!currentFile) { showError('Keine Datei ausgewählt.'); return; }
+
+            let newExt = newExtInput.value.trim();
+            if (!newExt) { showError('Bitte eine neue Endung eingeben.'); return; }
+            if (!newExt.startsWith('.')) newExt = '.' + newExt;
+
+            // Nur Buchstaben, Zahlen und Punkt erlauben
+            if (!/^\.[a-zA-Z0-9]+$/.test(newExt)) {
+                showError('Ungültige Endung. Erlaubt: Buchstaben, Zahlen (z.B. .md, .png).');
+                return;
+            }
+
+            // Alten Namen ohne Endung nehmen
+            const dot = currentFile.name.lastIndexOf('.');
+            const base = dot > 0 ? currentFile.name.substring(0, dot) : currentFile.name;
+            const newFileName = base + newExt;
+
+            const blob = currentFile.slice(0, currentFile.size, currentFile.type);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = newFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+
+            showSuccess(`✅ Gespeichert als: ${newFileName}`);
+        }
+
+        // Events
+        fileInput.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+            fileInput.value = '';
+        });
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        uploadArea.addEventListener('click', e => {
+            if (e.target.tagName !== 'INPUT') fileInput.click();
+        });
+
+        changeBtn.addEventListener('click', changeFormatAndDownload);
+        newExtInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') changeFormatAndDownload();
+        });
+    })();
+    </script>
+</body>
+</html>
